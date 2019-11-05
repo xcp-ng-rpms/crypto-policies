@@ -1,9 +1,9 @@
-%global git_date 20181217
-%global git_commit_hash 9a35207
+%global git_date 20190807
+%global git_commit_hash 9b1477b
 
 Name:           crypto-policies
 Version:        %{git_date}
-Release:        6.git%{git_commit_hash}%{?dist}
+Release:        1.git%{git_commit_hash}%{?dist}
 Summary:        Systemwide crypto policies
 
 License:        LGPLv2+
@@ -13,11 +13,6 @@ URL:            https://gitlab.com/redhat-crypto/fedora-crypto-policies
 # directory.
 # For RHEL-8 we use the upstream branch next-default.
 Source0:        crypto-policies-git%{git_commit_hash}.tar.gz
-Source1:        crypto-policies.7.txt
-Source2:        crypto-policies.7
-Patch1:         crypto-policies-manpage.patch
-Patch2:         crypto-policies-java-fix.patch
-Patch3:         crypto-policies-libreswan-fix.patch
 
 BuildArch: noarch
 BuildRequires: asciidoc
@@ -39,6 +34,9 @@ Requires: sed
 Requires(post): coreutils
 Requires(post): grep
 Requires(post): sed
+Conflicts: nss < 3.44.0
+Conflicts: libreswan < 3.28
+Conflicts: openssh < 8.0p1
 # used by fips-mode-setup
 Recommends: grubby
 
@@ -53,9 +51,6 @@ to enable or disable the system FIPS mode.
 
 %prep
 %setup -q -n %{name}
-%patch1 -p1 -b .manpage
-%patch2 -p1 -b .java-fix
-%patch3 -p1 -b .libreswan-fix
 
 %build
 make %{?_smp_mflags}
@@ -64,13 +59,10 @@ make %{?_smp_mflags}
 mkdir -p -m 755 %{buildroot}%{_datarootdir}/crypto-policies/
 mkdir -p -m 755 %{buildroot}%{_sysconfdir}/crypto-policies/back-ends/
 mkdir -p -m 755 %{buildroot}%{_sysconfdir}/crypto-policies/local.d/
-mkdir -p -m 755 %{buildroot}%{_mandir}/man7
-mkdir -p -m 755 %{buildroot}%{_mandir}/man8
 mkdir -p -m 755 %{buildroot}%{_bindir}
 
-make DESTDIR=%{buildroot} DIR=%{_datarootdir}/crypto-policies MANDIR=%{_mandir}/man8 %{?_smp_mflags} install
+make DESTDIR=%{buildroot} DIR=%{_datarootdir}/crypto-policies MANDIR=%{_mandir} %{?_smp_mflags} install
 install -p -m 644 default-config %{buildroot}%{_sysconfdir}/crypto-policies/config
-install -p -m 644 %{SOURCE2} %{buildroot}%{_mandir}/man7/crypto-policies.7
 
 %check
 make check %{?_smp_mflags}
@@ -103,15 +95,15 @@ make check %{?_smp_mflags}
 %{_bindir}/update-crypto-policies
 %{_bindir}/fips-mode-setup
 %{_bindir}/fips-finish-install
-%{_mandir}/man7/crypto-policies.7.gz
-%{_mandir}/man8/update-crypto-policies.8.gz
-%{_mandir}/man8/fips-mode-setup.8.gz
-%{_mandir}/man8/fips-finish-install.8.gz
-%{_datarootdir}/crypto-policies/LEGACY/*
-%{_datarootdir}/crypto-policies/DEFAULT/*
-%{_datarootdir}/crypto-policies/FUTURE/*
-%{_datarootdir}/crypto-policies/FIPS/*
-%{_datarootdir}/crypto-policies/EMPTY/*
+%{_mandir}/man7/crypto-policies.7*
+%{_mandir}/man8/update-crypto-policies.8*
+%{_mandir}/man8/fips-mode-setup.8*
+%{_mandir}/man8/fips-finish-install.8*
+%{_datarootdir}/crypto-policies/LEGACY
+%{_datarootdir}/crypto-policies/DEFAULT
+%{_datarootdir}/crypto-policies/FUTURE
+%{_datarootdir}/crypto-policies/FIPS
+%{_datarootdir}/crypto-policies/EMPTY
 %{_datarootdir}/crypto-policies/default-config
 %{_datarootdir}/crypto-policies/reload-cmds.sh
 
@@ -119,6 +111,22 @@ make check %{?_smp_mflags}
 %license COPYING.LESSER
 
 %changelog
+* Wed Aug  7 2019 Tomáš Mráz <tmraz@redhat.com> - 20190807-1.git9b1477b
+- gnutls: enable TLS-1.3 in the FIPS policy
+
+* Mon Aug  5 2019 Tomáš Mráz <tmraz@redhat.com> - 20190613-2.git21ffdc8
+- fix ownership of policy directories
+- nss: enable X25519 in appropriate policies and conflict with old nss
+- openssh: conflict with old incompatible openssh version
+
+* Thu Jun 13 2019 Tomáš Mráz <tmraz@redhat.com> - 20190613-1.git21ffdc8
+- openssh: add missing curve25519-sha256 to the key exchange list
+- openssh: fix RSA certificate support
+- fips-mode-setup: drop the kernel boot option if there is no separate
+  /boot drive
+- fips-finish-install: regenerate all initramdisks
+- add libssh configuration backend
+
 * Mon Feb 18 2019 Tomáš Mráz <tmraz@redhat.com> - 20181217-6.git9a35207
 - libreswan: Allow coalescing the IKE/IPSEC proposals
 
