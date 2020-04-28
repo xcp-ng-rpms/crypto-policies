@@ -1,17 +1,19 @@
-%global git_date 20190807
-%global git_commit_hash 9b1477b
+%global git_date 20191128
+%global git_commit_hash 23e1bf1
+
+%global _python_bytecompile_extra 0
 
 Name:           crypto-policies
 Version:        %{git_date}
-Release:        1.git%{git_commit_hash}%{?dist}
-Summary:        Systemwide crypto policies
+Release:        2.git%{git_commit_hash}%{?dist}
+Summary:        System-wide crypto policies
 
 License:        LGPLv2+
 URL:            https://gitlab.com/redhat-crypto/fedora-crypto-policies
 
 # This is a tarball of the git repository without the .git/
 # directory.
-# For RHEL-8 we use the upstream branch next-default.
+# For RHEL-8 we use the upstream branch rhel8.
 Source0:        crypto-policies-git%{git_commit_hash}.tar.gz
 
 BuildArch: noarch
@@ -53,29 +55,46 @@ to enable or disable the system FIPS mode.
 %setup -q -n %{name}
 
 %build
-make %{?_smp_mflags}
+%make_build
 
 %install
 mkdir -p -m 755 %{buildroot}%{_datarootdir}/crypto-policies/
+mkdir -p -m 755 %{buildroot}%{_datarootdir}/crypto-policies/back-ends/
 mkdir -p -m 755 %{buildroot}%{_sysconfdir}/crypto-policies/back-ends/
+mkdir -p -m 755 %{buildroot}%{_sysconfdir}/crypto-policies/state/
 mkdir -p -m 755 %{buildroot}%{_sysconfdir}/crypto-policies/local.d/
+mkdir -p -m 755 %{buildroot}%{_sysconfdir}/crypto-policies/policies/
+mkdir -p -m 755 %{buildroot}%{_sysconfdir}/crypto-policies/policies/modules/
 mkdir -p -m 755 %{buildroot}%{_bindir}
 
 make DESTDIR=%{buildroot} DIR=%{_datarootdir}/crypto-policies MANDIR=%{_mandir} %{?_smp_mflags} install
 install -p -m 644 default-config %{buildroot}%{_sysconfdir}/crypto-policies/config
 
+# Create back-end configs for mounting with read-only /etc/
+for d in LEGACY DEFAULT FUTURE FIPS ; do
+    mkdir -p -m 755 %{buildroot}%{_datarootdir}/crypto-policies/back-ends/$d
+    for f in %{buildroot}%{_datarootdir}/crypto-policies/$d/* ; do
+        ln $f %{buildroot}%{_datarootdir}/crypto-policies/back-ends/$d/$(basename $f .txt).config
+    done
+done
+
+%py_byte_compile %{__python3} %{buildroot}%{_datadir}/crypto-policies/python
+
 %check
 make check %{?_smp_mflags}
 
-%post
-%{_bindir}/update-crypto-policies --no-check >/dev/null
+%posttrans
+%{_bindir}/update-crypto-policies --no-check >/dev/null 2>/dev/null || :
 
 
 %files
 
 %dir %{_sysconfdir}/crypto-policies/
 %dir %{_sysconfdir}/crypto-policies/back-ends/
+%dir %{_sysconfdir}/crypto-policies/state/
 %dir %{_sysconfdir}/crypto-policies/local.d/
+%dir %{_sysconfdir}/crypto-policies/policies/
+%dir %{_sysconfdir}/crypto-policies/policies/modules/
 %dir %{_datarootdir}/crypto-policies/
 
 %config(noreplace) %{_sysconfdir}/crypto-policies/config
@@ -91,6 +110,7 @@ make check %{?_smp_mflags}
 %ghost %{_sysconfdir}/crypto-policies/back-ends/krb5.config
 %ghost %{_sysconfdir}/crypto-policies/back-ends/openjdk.config
 %ghost %{_sysconfdir}/crypto-policies/back-ends/libreswan.config
+%ghost %{_sysconfdir}/crypto-policies/back-ends/libssh.config
 
 %{_bindir}/update-crypto-policies
 %{_bindir}/fips-mode-setup
@@ -104,13 +124,36 @@ make check %{?_smp_mflags}
 %{_datarootdir}/crypto-policies/FUTURE
 %{_datarootdir}/crypto-policies/FIPS
 %{_datarootdir}/crypto-policies/EMPTY
+%{_datarootdir}/crypto-policies/back-ends
 %{_datarootdir}/crypto-policies/default-config
 %{_datarootdir}/crypto-policies/reload-cmds.sh
+%{_datarootdir}/crypto-policies/policies
+%{_datarootdir}/crypto-policies/python
 
 %{!?_licensedir:%global license %%doc}
 %license COPYING.LESSER
 
 %changelog
+* Mon Dec 16 2019 Tomáš Mráz <tmraz@redhat.com> - 20191128-2.git23e1bf1
+- move the pre-built .config files to /usr/share/crypto-policies/back-ends
+
+* Fri Nov 29 2019 Tomáš Mráz <tmraz@redhat.com> - 20191128-1.git23e1bf1
+- fips-mode-setup: compatibility with RHCOS
+
+* Thu Nov 28 2019 Tomáš Mráz <tmraz@redhat.com> - 20191127-1.git1179826
+- add FIPS subpolicy for OSPP
+
+* Tue Oct 29 2019 Tomáš Mráz <tmraz@redhat.com> - 20191022-1.gite17cc3a
+- custom crypto policies support
+- update-crypto-policies: fix handling of list operations in policy modules
+- update-crypto-policies: fix updating of the current policy marker
+- fips-mode-setup: fixes related to containers and non-root execution
+- make it possible to use fips-mode-setup --check without dracut
+- add .config symlinks so a crypto policy can be set with read-only
+  /etc by bind-mounting /usr/share/crypto-policies/<policy> to
+  /etc/crypto-policies/back-ends
+- run the update-crypto-policies in posttrans
+
 * Wed Aug  7 2019 Tomáš Mráz <tmraz@redhat.com> - 20190807-1.git9b1477b
 - gnutls: enable TLS-1.3 in the FIPS policy
 
