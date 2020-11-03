@@ -1,20 +1,18 @@
-%global git_date 20191128
-%global git_commit_hash 23e1bf1
+%global git_date 20200713
+%global git_commit 51d12223920a7c1e50c3161bcc351ae380142e97
+%{?git_commit:%global git_commit_hash %(c=%{git_commit}; echo ${c:0:7})}
 
 %global _python_bytecompile_extra 0
 
 Name:           crypto-policies
 Version:        %{git_date}
-Release:        2.git%{git_commit_hash}%{?dist}
+Release:        1.git%{git_commit_hash}%{?dist}
 Summary:        System-wide crypto policies
 
 License:        LGPLv2+
 URL:            https://gitlab.com/redhat-crypto/fedora-crypto-policies
-
-# This is a tarball of the git repository without the .git/
-# directory.
 # For RHEL-8 we use the upstream branch rhel8.
-Source0:        crypto-policies-git%{git_commit_hash}.tar.gz
+Source0:        https://gitlab.com/redhat-crypto/fedora-crypto-policies/-/archive/%{git_commit_hash}/%{name}-git%{git_commit_hash}.tar.gz
 
 BuildArch: noarch
 BuildRequires: asciidoc
@@ -29,30 +27,37 @@ BuildRequires: perl(File::pushd), perl(File::Temp), perl(File::Copy)
 BuildRequires: perl(File::Which)
 BuildRequires: python3-devel
 
-# used by update-crypto-policies
-Requires: coreutils
-Requires: grep
-Requires: sed
-Requires(post): coreutils
-Requires(post): grep
-Requires(post): sed
 Conflicts: nss < 3.44.0
 Conflicts: libreswan < 3.28
-Conflicts: openssh < 8.0p1
-# used by fips-mode-setup
-Recommends: grubby
+Conflicts: openssh < 8.0p1-5
+Conflicts: gnutls < 3.6.12
+# Most users want this, the split is mostly for minimal images
+Recommends: crypto-policies-scripts
+
+# Self-obsolete to install both subpackages after split.
+Obsoletes: %{name} < 20200527-1.git0a29b28
 
 %description
-This package provides a tool update-crypto-policies, which sets
-the policy applicable for the various cryptographic back-ends, such as
-SSL/TLS libraries. The policy set by the tool will be the default policy
-used by these back-ends unless the application user configures them otherwise.
+This package provides pre-built configuration files with
+cryptographic policies for various cryptographic back-ends,
+such as SSL/TLS libraries.
+
+%package scripts
+Summary: Tool to switch between crypto policies
+Requires: %{name} = %{version}-%{release}
+Recommends: grubby
+
+%description scripts
+This package provides a tool update-crypto-policies, which applies
+the policies provided by the crypto-policies package. These can be
+either the pre-built policies from the base package or custom policies
+defined in simple policy definition files.
 
 The package also provides a tool fips-mode-setup, which can be used
 to enable or disable the system FIPS mode.
 
 %prep
-%setup -q -n %{name}
+%setup -q -n fedora-crypto-policies-%{git_commit_hash}-%{git_commit}
 
 %build
 %make_build
@@ -69,6 +74,8 @@ mkdir -p -m 755 %{buildroot}%{_bindir}
 
 make DESTDIR=%{buildroot} DIR=%{_datarootdir}/crypto-policies MANDIR=%{_mandir} %{?_smp_mflags} install
 install -p -m 644 default-config %{buildroot}%{_sysconfdir}/crypto-policies/config
+touch %{buildroot}%{_sysconfdir}/crypto-policies/state/current
+touch %{buildroot}%{_sysconfdir}/crypto-policies/state/CURRENT.pol
 
 # Create back-end configs for mounting with read-only /etc/
 for d in LEGACY DEFAULT FUTURE FIPS ; do
@@ -78,12 +85,45 @@ for d in LEGACY DEFAULT FUTURE FIPS ; do
     done
 done
 
+for f in %{buildroot}%{_datarootdir}/crypto-policies/DEFAULT/* ; do
+    ln -sf %{_datarootdir}/crypto-policies/DEFAULT/$(basename $f) %{buildroot}%{_sysconfdir}/crypto-policies/back-ends/$(basename $f .txt).config
+done
+
 %py_byte_compile %{__python3} %{buildroot}%{_datadir}/crypto-policies/python
 
 %check
 make check %{?_smp_mflags}
 
-%posttrans
+%post -p <lua>
+if not posix.access("%{_sysconfdir}/crypto-policies/config") then
+    local policy = "DEFAULT"
+    local cf = io.open("/proc/sys/crypto/fips_enabled", "r")
+    if cf then
+        if cf:read() == "1" then
+            policy = "FIPS"
+        end
+        cf:close()
+    end
+    cf = io.open("%{_sysconfdir}/crypto-policies/config", "w")
+    if cf then
+        cf:write(policy.."\n")
+        cf:close()
+    end
+    cf = io.open("%{_sysconfdir}/crypto-policies/state/current", "w")
+    if cf then
+        cf:write(policy.."\n")
+        cf:close()
+    end
+    local policypath = "%{_datarootdir}/crypto-policies/"..policy
+    for fn in posix.files(policypath) do
+        local backend = fn:gsub(".*/", ""):gsub("%%..*", "")
+        local cfgfn = "%{_sysconfdir}/crypto-policies/back-ends/"..backend..".config"
+        posix.unlink(cfgfn)
+        posix.symlink(policypath.."/"..fn, cfgfn)
+    end
+end
+
+%posttrans scripts
 %{_bindir}/update-crypto-policies --no-check >/dev/null 2>/dev/null || :
 
 
@@ -97,28 +137,24 @@ make check %{?_smp_mflags}
 %dir %{_sysconfdir}/crypto-policies/policies/modules/
 %dir %{_datarootdir}/crypto-policies/
 
-%config(noreplace) %{_sysconfdir}/crypto-policies/config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/config
 
-%ghost %{_sysconfdir}/crypto-policies/back-ends/gnutls.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/openssl.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/opensslcnf.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/openssh.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/opensshserver.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/nss.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/bind.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/java.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/krb5.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/openjdk.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/libreswan.config
-%ghost %{_sysconfdir}/crypto-policies/back-ends/libssh.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/gnutls.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/openssl.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/opensslcnf.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/openssh.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/opensshserver.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/nss.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/bind.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/java.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/krb5.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/libreswan.config
+%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/libssh.config
 
-%{_bindir}/update-crypto-policies
-%{_bindir}/fips-mode-setup
-%{_bindir}/fips-finish-install
+%ghost %{_sysconfdir}/crypto-policies/state/current
+%ghost %{_sysconfdir}/crypto-policies/state/CURRENT.pol
+
 %{_mandir}/man7/crypto-policies.7*
-%{_mandir}/man8/update-crypto-policies.8*
-%{_mandir}/man8/fips-mode-setup.8*
-%{_mandir}/man8/fips-finish-install.8*
 %{_datarootdir}/crypto-policies/LEGACY
 %{_datarootdir}/crypto-policies/DEFAULT
 %{_datarootdir}/crypto-policies/FUTURE
@@ -128,12 +164,57 @@ make check %{?_smp_mflags}
 %{_datarootdir}/crypto-policies/default-config
 %{_datarootdir}/crypto-policies/reload-cmds.sh
 %{_datarootdir}/crypto-policies/policies
-%{_datarootdir}/crypto-policies/python
 
 %{!?_licensedir:%global license %%doc}
 %license COPYING.LESSER
 
+%files scripts
+%{_bindir}/update-crypto-policies
+%{_mandir}/man8/update-crypto-policies.8*
+%{_datarootdir}/crypto-policies/python
+
+%{_bindir}/fips-mode-setup
+%{_bindir}/fips-finish-install
+%{_mandir}/man8/fips-mode-setup.8*
+%{_mandir}/man8/fips-finish-install.8*
+
 %changelog
+* Mon Jul 13 2020 Tomáš Mráz <tmraz@redhat.com> - 20200713-1.git51d1222
+- OSPP subpolicy: remove AES-CCM
+- openssl: handle the AES-CCM removal properly
+
+* Wed Jul  1 2020 Tomáš Mráz <tmraz@redhat.com> - 20200629-1.git806b5d3
+- disallow X448/ED448 in FIPS policy with gnutls >= 3.6.12
+- add AD-SUPPORT policy module
+
+* Wed Jun 10 2020 Tomáš Mráz <tmraz@redhat.com> - 20200610-1.git0ac8b1f
+- fallback to FIPS policy instead of the default-config in FIPS mode
+- java: Document properly how to override the crypto policy
+- krb5: No support for 3des anymore
+- reorder the signature algorithms to follow the order in default openssl list
+
+* Tue Jun  9 2020 Tomáš Mráz <tmraz@redhat.com> - 20200527-5.gitb234a47
+- make the post script work in environments where /proc/sys is not available
+
+* Fri May 29 2020 Tomáš Mráz <tmraz@redhat.com> - 20200527-4.gitb234a47
+- automatically set up FIPS policy in FIPS mode on first install
+
+* Thu May 28 2020 Tomáš Mráz <tmraz@redhat.com> - 20200527-2.git63fc906
+- explicitly enable DHE-DSS in gnutls config if enabled in policy
+- use grubby with --update-kernel=ALL to avoid breaking kernelopts
+- OSPP subpolicy: Allow GCM for SSH protocol
+- openssh: Support newly standardized ECDHE-GSS and DHE-GSS key exchanges
+- if the policy in FIPS mode is not a FIPS policy print a message
+- openssl: Add SignatureAlgorithms support
+- custom crypto policies: enable completely overriding contents of the list
+  value
+- added ECDHE-ONLY.pmod policy module example
+- openssh: make LEGACY policy to prefer strong public key algorithms
+- various python code cleanups
+- update-crypto-policies: dump the current policy to
+  /etc/crypto-policies/state/CURRENT.pol
+- split scripts into their own subpackage
+
 * Mon Dec 16 2019 Tomáš Mráz <tmraz@redhat.com> - 20191128-2.git23e1bf1
 - move the pre-built .config files to /usr/share/crypto-policies/back-ends
 
