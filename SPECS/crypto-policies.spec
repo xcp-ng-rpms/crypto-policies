@@ -1,5 +1,5 @@
-%global git_date 20200713
-%global git_commit 51d12223920a7c1e50c3161bcc351ae380142e97
+%global git_date 20210209
+%global git_commit bfb6bed03149ced4e86e75298587c62de0206254
 %{?git_commit:%global git_commit_hash %(c=%{git_commit}; echo ${c:0:7})}
 
 %global _python_bytecompile_extra 0
@@ -179,6 +179,10 @@ end
 %{_mandir}/man8/fips-finish-install.8*
 
 %changelog
+* Tue Feb 09 2021 Alexander Sosedkin <asosedkin@redhat.com> - 20210209-1.gitbfb6bed
+- OSPP subpolicy: tweak for RHEL-8.3+
+- libssh: respect ssh_certs
+
 * Mon Jul 13 2020 Tomáš Mráz <tmraz@redhat.com> - 20200713-1.git51d1222
 - OSPP subpolicy: remove AES-CCM
 - openssl: handle the AES-CCM removal properly
