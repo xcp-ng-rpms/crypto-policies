@@ -1,5 +1,5 @@
-%global git_date 20210209
-%global git_commit bfb6bed03149ced4e86e75298587c62de0206254
+%global git_date 20210617
+%global git_commit c776d3e46dc67503ae1cd843db8e3ba1135be02f
 %{?git_commit:%global git_commit_hash %(c=%{git_commit}; echo ${c:0:7})}
 
 %global _python_bytecompile_extra 0
@@ -11,7 +11,7 @@ Summary:        System-wide crypto policies
 
 License:        LGPLv2+
 URL:            https://gitlab.com/redhat-crypto/fedora-crypto-policies
-# For RHEL-8 we use the upstream branch rhel8.
+# For RHEL-8 we use the upstream branch rhel8
 Source0:        https://gitlab.com/redhat-crypto/fedora-crypto-policies/-/archive/%{git_commit_hash}/%{name}-git%{git_commit_hash}.tar.gz
 
 BuildArch: noarch
@@ -26,15 +26,18 @@ BuildRequires: perl-generators
 BuildRequires: perl(File::pushd), perl(File::Temp), perl(File::Copy)
 BuildRequires: perl(File::Which)
 BuildRequires: python3-devel
+BuildRequires: python3-pytest
+BuildRequires: python3-coverage
 
 Conflicts: nss < 3.44.0
 Conflicts: libreswan < 3.28
+Conflicts: openssl < 1.1.1k
 Conflicts: openssh < 8.0p1-5
 Conflicts: gnutls < 3.6.12
 # Most users want this, the split is mostly for minimal images
 Recommends: crypto-policies-scripts
 
-# Self-obsolete to install both subpackages after split.
+# Self-obsolete to install both subpackages after split
 Obsoletes: %{name} < 20200527-1.git0a29b28
 
 %description
@@ -58,6 +61,7 @@ to enable or disable the system FIPS mode.
 
 %prep
 %setup -q -n fedora-crypto-policies-%{git_commit_hash}-%{git_commit}
+%autopatch -p1
 
 %build
 %make_build
@@ -92,7 +96,7 @@ done
 %py_byte_compile %{__python3} %{buildroot}%{_datadir}/crypto-policies/python
 
 %check
-make check %{?_smp_mflags}
+make ON_RHEL8=1 test
 
 %post -p <lua>
 if not posix.access("%{_sysconfdir}/crypto-policies/config") then
@@ -139,17 +143,19 @@ end
 
 %ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/config
 
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/gnutls.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/openssl.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/opensslcnf.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/openssh.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/opensshserver.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/nss.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/bind.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/java.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/krb5.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/libreswan.config
-%ghost %config(missingok,noreplace) %{_sysconfdir}/crypto-policies/back-ends/libssh.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/gnutls.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/openssl.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/opensslcnf.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/openssh.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/opensshserver.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/nss.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/bind.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/java.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/krb5.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/libreswan.config
+%ghost %config(missingok,noreplace) %verify(not mode) %{_sysconfdir}/crypto-policies/back-ends/libssh.config
+# %verify(not mode) comes from the fact
+# these turn into symlinks and back to regular files at will, see bz1898986
 
 %ghost %{_sysconfdir}/crypto-policies/state/current
 %ghost %{_sysconfdir}/crypto-policies/state/CURRENT.pol
@@ -179,6 +185,22 @@ end
 %{_mandir}/man8/fips-finish-install.8*
 
 %changelog
+* Thu Jun 17 2021 Alexander Sosedkin <asosedkin@redhat.com> - 20210617-1.gitc776d3e
+- implement scoped policies, e.g., cipher@SSH = ... (#1960266)
+- implement algorithm globbing, e.g., cipher@SSH = -*-CBC
+- deprecate derived properties:
+  tls_cipher, ssh_cipher, ssh_group, ike_protocol
+- deprecate sha1_in_dnssec property
+- deprecate unscoped form of protocol property
+- update documentation
+- expand upstream test coverage
+- openssl: set MinProtocol / MaxProtocol separately for TLS and DTLS (#1946522)
+- support AES-192 ciphers in custom policies for non-TLS scenarios (#1876846)
+- stop claiming Camellia is disabled (#1925104)
+- disable CBC ciphers in FUTURE for everything but Kerberos (#1933016)
+- drop SHA224 from signature algorithms in FIPS:OSPP (#1934755)
+- condition ecdh-sha2-nistp384 on SECP384R1
+
 * Tue Feb 09 2021 Alexander Sosedkin <asosedkin@redhat.com> - 20210209-1.gitbfb6bed
 - OSPP subpolicy: tweak for RHEL-8.3+
 - libssh: respect ssh_certs
