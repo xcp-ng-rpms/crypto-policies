@@ -1,5 +1,5 @@
-%global git_date 20210617
-%global git_commit c776d3e46dc67503ae1cd843db8e3ba1135be02f
+%global git_date 20211116
+%global git_commit ae470d6c5ee633d77c3ae9bcebf748fb3dad9507
 %{?git_commit:%global git_commit_hash %(c=%{git_commit}; echo ${c:0:7})}
 
 %global _python_bytecompile_extra 0
@@ -34,6 +34,7 @@ Conflicts: libreswan < 3.28
 Conflicts: openssl < 1.1.1k
 Conflicts: openssh < 8.0p1-5
 Conflicts: gnutls < 3.6.12
+Conflicts: libssh < 0.9.4
 # Most users want this, the split is mostly for minimal images
 Recommends: crypto-policies-scripts
 
@@ -185,6 +186,12 @@ end
 %{_mandir}/man8/fips-finish-install.8*
 
 %changelog
+* Tue Nov 16 2021 Alexander Sosedkin <asosedkin@redhat.com> - 20211116-1.gitae470d6
+- OSPP: relax -ECDSA-SHA2-512, -FFDHE-*
+- fips-mode-setup, fips-finish-install: call zipl more often (s390x-specific)
+- libssh: enable diffie-hellman-group14-sha256 support
+- openssl: fix disabling ChaCha20
+
 * Thu Jun 17 2021 Alexander Sosedkin <asosedkin@redhat.com> - 20210617-1.gitc776d3e
 - implement scoped policies, e.g., cipher@SSH = ... (#1960266)
 - implement algorithm globbing, e.g., cipher@SSH = -*-CBC
