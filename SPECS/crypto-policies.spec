@@ -1,5 +1,5 @@
-%global git_date 20211116
-%global git_commit ae470d6c5ee633d77c3ae9bcebf748fb3dad9507
+%global git_date 20221215
+%global git_commit ece0092078a87593c01b127cdb2368877ce11d01
 %{?git_commit:%global git_commit_hash %(c=%{git_commit}; echo ${c:0:7})}
 
 %global _python_bytecompile_extra 0
@@ -121,10 +121,12 @@ if not posix.access("%{_sysconfdir}/crypto-policies/config") then
     end
     local policypath = "%{_datarootdir}/crypto-policies/"..policy
     for fn in posix.files(policypath) do
-        local backend = fn:gsub(".*/", ""):gsub("%%..*", "")
-        local cfgfn = "%{_sysconfdir}/crypto-policies/back-ends/"..backend..".config"
-        posix.unlink(cfgfn)
-        posix.symlink(policypath.."/"..fn, cfgfn)
+        if fn ~= "." and fn ~= ".." then
+            local backend = fn:gsub(".*/", ""):gsub("%%..*", "")
+            local cfgfn = "%{_sysconfdir}/crypto-policies/back-ends/"..backend..".config"
+            posix.unlink(cfgfn)
+            posix.symlink(policypath.."/"..fn, cfgfn)
+        end
     end
 end
 
@@ -186,6 +188,11 @@ end
 %{_mandir}/man8/fips-finish-install.8*
 
 %changelog
+* Thu Dec 15 2022 Alexander Sosedkin <asosedkin@redhat.com> - 20221215-1.gitece0092
+- bind: expand the list of disableable algorithms
+- tests/java: fix java.security.disableSystemPropertiesFile=true
+- stop accidentally creating /etc/crypto-policies/back-ends/.config symlink
+
 * Tue Nov 16 2021 Alexander Sosedkin <asosedkin@redhat.com> - 20211116-1.gitae470d6
 - OSPP: relax -ECDSA-SHA2-512, -FFDHE-*
 - fips-mode-setup, fips-finish-install: call zipl more often (s390x-specific)
