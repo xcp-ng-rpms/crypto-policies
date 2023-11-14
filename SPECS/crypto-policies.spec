@@ -1,5 +1,5 @@
-%global git_date 20221215
-%global git_commit ece0092078a87593c01b127cdb2368877ce11d01
+%global git_date 20230731
+%global git_commit 3177e06c203c082d479760337c7cad65a4dcc81e
 %{?git_commit:%global git_commit_hash %(c=%{git_commit}; echo ${c:0:7})}
 
 %global _python_bytecompile_extra 0
@@ -188,6 +188,11 @@ end
 %{_mandir}/man8/fips-finish-install.8*
 
 %changelog
+* Tue Jul 31 2023 Alexander Sosedkin <asosedkin@redhat.com> - 20230731-1.git3177e06
+- krb5: sort enctypes mac-first, cipher-second, prioritize SHA-2 ones
+- krb5: fix policy generator to account for macs
+- docs: replace `FIPS 140-2` with just `FIPS 140`
+
 * Thu Dec 15 2022 Alexander Sosedkin <asosedkin@redhat.com> - 20221215-1.gitece0092
 - bind: expand the list of disableable algorithms
 - tests/java: fix java.security.disableSystemPropertiesFile=true
