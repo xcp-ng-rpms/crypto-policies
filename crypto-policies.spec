@@ -1,17 +1,17 @@
-%global git_date 20250214
-%global git_commit fd9b9b972b658fc9c66174e979bc7cd49bf6a6bf
+%global git_commit 4304d53132e06ecb4ffbfdb5cb13dfdbc66adb7b
 %{?git_commit:%global git_commit_hash %(c=%{git_commit}; echo ${c:0:7})}
 
 %global _python_bytecompile_extra 0
 
 Name:           crypto-policies
-Version:        %{git_date}
-Release:        1.git%{git_commit_hash}%{?dist}
+Version:        20250214
+Release:        1.gitfd9b9b9%{?dist}.1
 Summary:        System-wide crypto policies
 
 License:        LGPL-2.1-or-later
 URL:            https://gitlab.com/redhat-crypto/fedora-crypto-policies
-# For RHEL-10 we use the upstream branch rhel10.
+# For RHEL-10.0 we use the upstream branch rhel10.0
+# and freeze the version at 20250214-1.gitfd9b9b9
 Source0:        https://gitlab.com/redhat-crypto/fedora-crypto-policies/-/archive/%{git_commit_hash}/%{name}-git%{git_commit_hash}.tar.gz
 
 ExclusiveArch: %{java_arches} noarch
@@ -231,6 +231,7 @@ exit 0
 %{_datarootdir}/crypto-policies/policies/LEGACY.pol
 %dir %{_datarootdir}/crypto-policies/policies/modules
 %{_datarootdir}/crypto-policies/policies/modules/AD-SUPPORT.pmod
+%{_datarootdir}/crypto-policies/policies/modules/AD-SUPPORT-LEGACY.pmod
 %{_datarootdir}/crypto-policies/policies/modules/ECDHE-ONLY.pmod
 %{_datarootdir}/crypto-policies/policies/modules/NO-ENFORCE-EMS.pmod
 %{_datarootdir}/crypto-policies/policies/modules/OSPP.pmod
@@ -252,6 +253,9 @@ exit 0
 
 
 %changelog
+* Tue Jul 15 2025 Alexander Sosedkin <asosedkin@redhat.com> - 20250214-1.gitfd9b9b9.1
+- AD-SUPPORT-LEGACY: resurrect subpolicy as present in RHEL-9
+
 * Fri Feb 14 2025 Alexander Sosedkin <asosedkin@redhat.com> - 20250214-1.gitfd9b9b9
 - openssl: use both names for P384-MLKEM1024
 
