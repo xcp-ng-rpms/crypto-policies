@@ -5,7 +5,7 @@
 
 Name:           crypto-policies
 Version:        20250214
-Release:        1.gitfd9b9b9%{?dist}.1
+Release:        1.gitfd9b9b9%{?dist}.1.1
 Summary:        System-wide crypto policies
 
 License:        LGPL-2.1-or-later
@@ -28,6 +28,9 @@ BuildRequires: python3-devel >= 3.12
 BuildRequires: python3-pytest
 BuildRequires: make
 BuildRequires: systemd-rpm-macros
+
+# workaround to help rpm make better decision about dependency loop breaking
+Requires(pre): glibc
 
 Conflicts: openssl-libs < 1:3.2
 Conflicts: nss < 3.101.0-9
@@ -253,8 +256,9 @@ exit 0
 
 
 %changelog
-* Fri Mar 13 2026 Yann Dirson <yann.dirson@vates.tech> - NEXT
+* Fri Mar 13 2026 Yann Dirson <yann.dirson@vates.tech> - 20250214-1.gitfd9b9b9.1.1
 - Allow x86_64_v2 explicitly to help koji build the package
+- Add Requires(pre): glibc to fix installation while bootstrapping a rootfs
 
 * Tue Jul 15 2025 Alexander Sosedkin <asosedkin@redhat.com> - 20250214-1.gitfd9b9b9.1
 - AD-SUPPORT-LEGACY: resurrect subpolicy as present in RHEL-9
