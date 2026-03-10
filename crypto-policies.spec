@@ -5,7 +5,7 @@
 
 Name:           crypto-policies
 Version:        20250214
-Release:        1.gitfd9b9b9%{?dist}.1
+Release:        1.gitfd9b9b9%{?dist}.1.0.ydi.1
 Summary:        System-wide crypto policies
 
 License:        LGPL-2.1-or-later
@@ -29,6 +29,7 @@ BuildRequires: python3-pytest
 BuildRequires: make
 BuildRequires: systemd-rpm-macros
 
+Requires(pre): /bin/sh
 Conflicts: openssl-libs < 1:3.2
 Conflicts: nss < 3.101.0-9
 Conflicts: libreswan < 4.12
@@ -253,6 +254,9 @@ exit 0
 
 
 %changelog
+* Tue Mar 10 2026 Yann Dirson <yann.dirson@vates.tech> - 20250214-1.gitfd9b9b9.1.0.ydi.1
+- Add Requires(pre): /bin/sh to fix installation while bootstrapping a rootfs
+
 * Tue Jul 15 2025 Alexander Sosedkin <asosedkin@redhat.com> - 20250214-1.gitfd9b9b9.1
 - AD-SUPPORT-LEGACY: resurrect subpolicy as present in RHEL-9
 
