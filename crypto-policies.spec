@@ -5,7 +5,7 @@
 
 Name:           crypto-policies
 Version:        20250214
-Release:        1.gitfd9b9b9%{?dist}.1.0.ydi.1
+Release:        1.gitfd9b9b9%{?dist}.1.0.ydi.2
 Summary:        System-wide crypto policies
 
 License:        LGPL-2.1-or-later
@@ -14,7 +14,7 @@ URL:            https://gitlab.com/redhat-crypto/fedora-crypto-policies
 # and freeze the version at 20250214-1.gitfd9b9b9
 Source0:        https://gitlab.com/redhat-crypto/fedora-crypto-policies/-/archive/%{git_commit_hash}/%{name}-git%{git_commit_hash}.tar.gz
 
-ExclusiveArch: %{java_arches} noarch x86_64_v2
+ExclusiveArch: %{java_arches} noarch %{x86_64}
 BuildArch: noarch
 BuildRequires: asciidoc
 BuildRequires: libxslt
@@ -254,7 +254,7 @@ exit 0
 
 
 %changelog
-* Tue Mar 10 2026 Yann Dirson <yann.dirson@vates.tech> - 20250214-1.gitfd9b9b9.1.0.ydi.1
+* Tue Mar 10 2026 Yann Dirson <yann.dirson@vates.tech> - 20250214-1.gitfd9b9b9.1.0.ydi.2
 - Add Requires(pre): /bin/sh to fix installation while bootstrapping a rootfs
 - Allow x86_64_v2 explicitly in a hope to help koji build the package
 
