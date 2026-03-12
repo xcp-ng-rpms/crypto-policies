@@ -5,7 +5,7 @@
 
 Name:           crypto-policies
 Version:        20250214
-Release:        1.gitfd9b9b9%{?dist}.1.2
+Release:        1.gitfd9b9b9%{?dist}.1.2~ydi3.1
 Summary:        System-wide crypto policies
 
 License:        LGPL-2.1-or-later
